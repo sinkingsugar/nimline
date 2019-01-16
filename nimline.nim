@@ -1,22 +1,29 @@
 {.experimental.}
 
-import macros, tables, strutils, ospaths
+import macros, tables, strutils, os
 
 type
   CppProxy* {.nodecl.} = object
+    ## A C++ object whose type is not known to the Nim compiler. Proxies are typically results of C++ calls.
+    ## They can be used in further C++ calls, cast to concrete types using `to`, but not stored in variables.
+
   CppObject* = concept type T
+    ## A concept for types that support C++ method invokation. Users can mark types as `CppObject` using
+    ## `proc isCppObject*(T: type MyCppType): bool = true`
     T.isCppObject
 
 when defined(js):
   type WasmPtr* = distinct int
+
 else:
-  # linux gprof utility define
+  # Linux gprof utility define
   when defined(linux) and defined(gprof):
     {.passC: "-pg".}
     {.passL: "-pg".}
 
-  # compiler utilities
+  # Compiler utilities
   macro cppdefines*(defines: varargs[string]): untyped =
+    ## Add preprocessor defines to the C++ compilation in a platform-independent way.
     result = nnkStmtList.newTree()
     
     for adefine in defines:
@@ -29,6 +36,7 @@ else:
       result.add nnkPragma.newTree(nnkExprColonExpr.newTree(newIdentNode("passC"), newLit(str)))
       
   macro cppincludes*(includes: varargs[string]): untyped =
+    ## Add ab include path to the C++ compilation in a platform-independent way.
     result = nnkStmtList.newTree()
     
     for incl in includes:
@@ -45,6 +53,7 @@ else:
       result.add nnkPragma.newTree(nnkExprColonExpr.newTree(newIdentNode("passC"), newLit(str)))
       
   macro cppfiles*(files: varargs[string]): untyped =
+    ## Add source files to the C++ compilation in a platform-independent way.
     result = nnkStmtList.newTree()
     
     for file in files:
@@ -58,6 +67,7 @@ else:
       result.add nnkPragma.newTree(nnkExprColonExpr.newTree(newIdentNode("compile"), newLit(str)))
       
   macro cpplibpaths*(paths: varargs[string]): untyped =
+    ## Add search paths for static libraries to the C++ compilation in a platform-independent way.
     result = nnkStmtList.newTree()
     
     for path in paths:
@@ -74,6 +84,7 @@ else:
       result.add nnkPragma.newTree(nnkExprColonExpr.newTree(newIdentNode("passL"), newLit(str)))
       
   macro cpplibs*(libs: varargs[string]): untyped =
+    ## Add libraries defines to the C++ compilation in a platform-independent way.
     result = nnkStmtList.newTree()
     
     for lib in libs:
@@ -94,11 +105,8 @@ proc isCppObject*(T: typedesc[CppGlobalType]): bool = true
 var global* {.nodecl.}: CppGlobalType
 const CppGlobalName = "global"
 
-const
-  setImpl = "#[#] = #"
-  getImpl = "#[#]"
-
 macro defineCppType*(name: untyped, importCppStr: string, headerStr: string = ""): untyped =
+  ## Imports a C++ type and allows it to be used as `CppObject`
   result = nnkStmtList.newTree()
 
   result.add quote do:
@@ -119,14 +127,15 @@ macro defineCppType*(name: untyped, importCppStr: string, headerStr: string = ""
     converter `converterName`*(co: CppProxy): `name` {.used, importcpp:"(#)".}
     proc isCppObject*(T: typedesc[`name`]): bool = true
 
-# constructor call
 proc cppinit*(T: typedesc[CppObject]): T {.importcpp:"'0(@)", varargs, constructor.}
+  ## Constructs an object of a C++ type
 
-# magic placement new constructor for ptrs
 proc cppctor*[T](x: ptr T): ptr T {.header:"new", importcpp: "(new (#) '*0(@))", varargs, nodecl, discardable.}
+  ## Calls placement new, constructing an object in the location pointed to.
 
 # magic placement new constructor for refs
 proc cppctor*[T](x: ref T): ref T {.header:"new", importcpp: "(new (#) '*0(@))", varargs, nodecl, discardable.}
+  ## Calls placement new, constructing an object in the location referenced.
 
 when not defined(js):
   {.emit:["""/*TYPESECTION*/
@@ -139,6 +148,7 @@ when not defined(js):
   #endif
     """].}
 
+## TODO: Unify?
 # normal destructor for value types
 proc internalCppdtor[T: CppObject](x: var T) {.importcpp:"callCppPtrDestructor(#)".}
 
@@ -150,6 +160,7 @@ proc internalCppdtor[T: CppObject](x: ref T) {.importcpp:"callCppPtrDestructor(#
 
 # normal destructor for value types
 proc internalCppdtor[T: not CppObject](x: T) {.importcpp:"#.~'1()".}
+  ## TODO: var T?
 
 # magic placement new compatible destructor for ptrs
 proc internalCppdtor[T: not CppObject](x: ptr T) = x[].internalCppdtor()
@@ -158,86 +169,81 @@ proc internalCppdtor[T: not CppObject](x: ptr T) = x[].internalCppdtor()
 proc internalCppdtor[T: not CppObject](x: ref T) = x[].internalCppdtor()
 
 proc cppdelptr*[T](x: ptr T) =
+  ## TODO: Remove, or make more consistent helpers
   x.internalCppdtor()
   dealloc(x)
 
 proc cppdtor*[T](x: ptr T) =
+  ## Calls the destructor of a C++ type. Use together with `cppctor`
   x.internalCppdtor()
 
 proc cppmove*[T](x: T): T {.importcpp:"std::move(#)".}
+  ## Calls `std::move` on the C++ object.
 
-# refs
-
+# TODO: Try to unify (varargs[typed] didn't seem to work yet)
 proc cppnewref*(myRef: var ref) =
+  ## Creates a new bject and constructs the underlying C++ object. The object will be destroyed when the `ref` is finalized.
   new(myRef, proc(self: type(myRef)) = self.internalCppdtor())
   myRef.cppctor()
 
-# I could not find a way to avoid generating one of the following per each arg yet (so far varargs, typed, untyped didn't work)
-
 proc cppnewref*(myRef: var ref, arg0: auto) =
+  ## Creates a new bject and constructs the underlying C++ object. The object will be destroyed when the `ref` is finalized.
   new(myRef, proc(self: type(myRef)) = self.internalCppdtor())
   myRef.cppctor(arg0)
 
 proc cppnewref*(myRef: var ref, arg0, arg1: auto) =
+  ## Creates a new bject and constructs the underlying C++ object. The object will be destroyed when the `ref` is finalized.
   new(myRef, proc(self: type(myRef)) = self.internalCppdtor())
   myRef.cppctor(arg0, arg1)
 
-# ptr
-
 template cppnewptr*(myPtr: ptr): untyped =
+  ## Allocates storage for and constructs a C++ object
   myPtr = cast[type(myPtr)](alloc0(sizeof(type(myPtr[]))))
   myPtr.cppctor()
 
-# I could not find a way to avoid generating one of the following per each arg yet (so far varargs, typed, untyped didn't work)
-
 template cppnewptr*(myPtr: ptr, arg0: typed): untyped =
+  ## Allocates storage for and constructs a C++ object
   myPtr = cast[type(myPtr)](alloc0(sizeof(type(myPtr[]))))
   myPtr.cppctor(arg0)
 
 template cppnewptr*(myPtr: ptr, arg0, arg1: typed): untyped =
+  ## Allocates storage for and constructs a C++ object
   myPtr = cast[type(myPtr)](alloc0(sizeof(type(myPtr[]))))
   myPtr.cppctor(arg0, arg1)
 
 template cppnewptr*(myPtr: ptr, arg0, arg1, arg2: typed): untyped =
+  ## Allocates storage for and constructs a C++ object
   myPtr = cast[type(myPtr)](alloc0(sizeof(type(myPtr[]))))
   myPtr.cppctor(arg0, arg1, arg2)
 
-proc `+`  *(x, y: CppProxy): CppProxy {.importcpp:"(# + #)".}
-proc `-`  *(x, y: CppProxy): CppProxy {.importcpp:"(# - #)".}
-proc `*`  *(x, y: CppProxy): CppProxy {.importcpp:"(# * #)".}
-proc `/`  *(x, y: CppProxy): CppProxy {.importcpp:"(# / #)".}
-proc `%`  *(x, y: CppProxy): CppProxy {.importcpp:"(# % #)".}
-proc `+=` *(x, y: CppProxy): CppProxy {.importcpp:"(# += #)", discardable.}
-proc `-=` *(x, y: CppProxy): CppProxy {.importcpp:"(# -= #)", discardable.}
-proc `*=` *(x, y: CppProxy): CppProxy {.importcpp:"(# *= #)", discardable.}
-proc `/=` *(x, y: CppProxy): CppProxy {.importcpp:"(# /= #)", discardable.}
-proc `%=` *(x, y: CppProxy): CppProxy {.importcpp:"(# %= #)", discardable.}
-proc `++` *(x: CppProxy): CppProxy {.importcpp:"(++#)".}
-proc `--` *(x: CppProxy): CppProxy {.importcpp:"(--#)".}
-proc `==` *(x, y: CppProxy): CppProxy {.importcpp:"(# == #)".}
-proc `>`  *(x, y: CppProxy): CppProxy {.importcpp:"(# > #)".}
-proc `<`  *(x, y: CppProxy): CppProxy {.importcpp:"(# < #)".}
-proc `>=` *(x, y: CppProxy): CppProxy {.importcpp:"(# >= #)".}
-proc `<=` *(x, y: CppProxy): CppProxy {.importcpp:"(# <= #)".}
-proc `<<` *(x, y: CppProxy): CppProxy {.importcpp:"(# << #)".}
-proc `>>` *(x, y: CppProxy): CppProxy {.importcpp:"(# >> #)".}
-proc `and`*(x, y: CppProxy): CppProxy {.importcpp:"(# && #)".}
-proc `or` *(x, y: CppProxy): CppProxy {.importcpp:"(# || #)".}
-proc `not`*(x: CppProxy): CppProxy {.importcpp:"(!#)".}
-proc `-`  *(x: CppProxy): CppProxy {.importcpp:"(-#)".}
-proc `in` *(x, y: CppProxy): CppProxy {.importcpp:"(# in #)".}
+proc `+`  *(x, y: CppProxy): CppProxy {.importcpp: "(# + #)".}
+proc `-`  *(x, y: CppProxy): CppProxy {.importcpp: "(# - #)".}
+proc `*`  *(x, y: CppProxy): CppProxy {.importcpp: "(# * #)".}
+proc `/`  *(x, y: CppProxy): CppProxy {.importcpp: "(# / #)".}
+proc `%`  *(x, y: CppProxy): CppProxy {.importcpp: "(# % #)".}
+proc `+=` *(x, y: CppProxy): CppProxy {.importcpp: "(# += #)", discardable.}
+proc `-=` *(x, y: CppProxy): CppProxy {.importcpp: "(# -= #)", discardable.}
+proc `*=` *(x, y: CppProxy): CppProxy {.importcpp: "(# *= #)", discardable.}
+proc `/=` *(x, y: CppProxy): CppProxy {.importcpp: "(# /= #)", discardable.}
+proc `%=` *(x, y: CppProxy): CppProxy {.importcpp: "(# %= #)", discardable.}
+proc `++` *(x: CppProxy): CppProxy {.importcpp: "(++#)", discardable}
+proc `--` *(x: CppProxy): CppProxy {.importcpp: "(--#)", discardable}
+proc `==` *(x, y: CppProxy): CppProxy {.importcpp: "(# == #)".}
+proc `>`  *(x, y: CppProxy): CppProxy {.importcpp: "(# > #)".}
+proc `<`  *(x, y: CppProxy): CppProxy {.importcpp: "(# < #)".}
+proc `>=` *(x, y: CppProxy): CppProxy {.importcpp: "(# >= #)".}
+proc `<=` *(x, y: CppProxy): CppProxy {.importcpp: "(# <= #)".}
+proc `<<` *(x, y: CppProxy): CppProxy {.importcpp: "(# << #)".}
+proc `>>` *(x, y: CppProxy): CppProxy {.importcpp: "(# >> #)".}
+proc `and`*(x, y: CppProxy): CppProxy {.importcpp: "(# && #)".}
+proc `or` *(x, y: CppProxy): CppProxy {.importcpp: "(# || #)".}
+proc `not`*(x: CppProxy): CppProxy {.importcpp: "(!#)".}
+proc `-`  *(x: CppProxy): CppProxy {.importcpp: "(-#)".}
 
-proc `[]`*(obj: CppProxy, field: auto): CppProxy {.importcpp:getImpl.}
-  ## Return the value of a property of name `field` from a JsObject `obj`.
-
-proc `[]=`*[T](obj: CppProxy, field: auto, val: T) {.importcpp:setImpl.}
-  ## Set the value of a property of name `field` in a JsObject `obj` to `v`.
-
-proc `[]`*(obj: CppObject, field: auto): CppProxy {.importcpp:getImpl.}
-  ## Return the value of a property of name `field` from a JsObject `obj`.
-
-proc `[]=`*[T](obj: CppObject, field: auto, val: T) {.importcpp:setImpl.}
-  ## Set the value of a property of name `field` in a JsObject `obj` to `v`.
+proc `[]`*(obj: CppProxy, field: auto): CppProxy {.importcpp: "#[#]".}
+proc `[]=`*[T](obj: CppProxy, field: auto, val: T) {.importcpp: "#[#] = #".}
+proc `[]`*(obj: CppObject, field: auto): CppProxy {.importcpp: "#[#]".}
+proc `[]=`*[T](obj: CppObject, field: auto, val: T) {.importcpp: "#[#] = #".}
 
 when defined(js):
   # Conversion to and from CppProxy
@@ -265,37 +271,37 @@ proc toCpp*[T](val: T): CppProxy {. importcpp: "(#)" .}
 
 template toCpp*(s: string): CppProxy = cstring(s).toCpp
 
-converter toByte*(co: CppProxy): int8 {.used, importcpp:"(#)".}
-converter toUByte*(co: CppProxy): uint8 {.used, importcpp:"(#)".}
+# TODO: Remove used
+converter toByte*(co: CppProxy): int8 {.used, importcpp: "(#)".}
+converter toUByte*(co: CppProxy): uint8 {.used, importcpp: "(#)".}
 
-converter toShort*(co: CppProxy): int16 {.used, importcpp:"(#)".}
-converter toUShort*(co: CppProxy): uint16 {.used, importcpp:"(#)".}
+converter toShort*(co: CppProxy): int16 {.used, importcpp: "(#)".}
+converter toUShort*(co: CppProxy): uint16 {.used, importcpp: "(#)".}
 
-converter toInt*(co: CppProxy): int {.used, importcpp:"(#)".}
-converter toUInt*(co: CppProxy): uint {.used, importcpp:"(#)".}
+converter toInt*(co: CppProxy): int {.used, importcpp: "(#)".}
+converter toUInt*(co: CppProxy): uint {.used, importcpp: "(#)".}
 
-converter toLong*(co: CppProxy): int64 {.used, importcpp:"(#)".}
-converter toULong*(co: CppProxy): uint64 {.used, importcpp:"(#)".}
+converter toLong*(co: CppProxy): int64 {.used, importcpp: "(#)".}
+converter toULong*(co: CppProxy): uint64 {.used, importcpp: "(#)".}
 
-converter toFloat*(co: CppProxy): float {.used, importcpp:"(#)".}
-converter toFloat32*(co: CppProxy): float32 {.used, importcpp:"(#)".}
+converter toFloat*(co: CppProxy): float {.used, importcpp: "(#)".}
+converter toFloat32*(co: CppProxy): float32 {.used, importcpp: "(#)".}
 
-converter toDouble*(co: CppProxy): float64 {.used, importcpp:"(#)".}
+converter toDouble*(co: CppProxy): float64 {.used, importcpp: "(#)".}
 
-converter toCString*(co: CppProxy): cstring {.used, importcpp:"(#)".}
+converter toCString*(co: CppProxy): cstring {.used, importcpp: "(#)".}
 
 when defined(js):
-  converter toWasmPtr*(co: CppProxy): WasmPtr {.used, importcpp:"(#)".}
+  converter toWasmPtr*(co: CppProxy): WasmPtr {.used, importcpp: "(#)".}
 
-macro CppFromAst*(n: untyped): untyped =
+macro cppFromAst*(n: untyped): untyped =
   result = n
   if n.kind == nnkStmtList:
     result = newProc(procType = nnkDo, body = result)
   return quote: toCpp(`result`)
 
 macro dynamicCppGet*(obj: CppObject, field: untyped): CppProxy =
-  ## Experimental dot accessor (get) for type JsObject.
-  ## Returns the value of a property of name `field` from a CppObject `x`.
+  ## Returns the value of a property of name `field` from a CppObject `obj`.
   if obj.len == 0 and $obj == CppGlobalName:
     let importString = "(" & $field & ")"
     result = quote do:
@@ -308,13 +314,11 @@ macro dynamicCppGet*(obj: CppObject, field: untyped): CppProxy =
       helper(`obj`)
 
 template `.`*(obj: CppObject, field: untyped): CppProxy =
-  ## Experimental dot accessor (get) for type JsObject.
-  ## Returns the value of a property of name `field` from a CppObject `x`.
+  ## Returns the value of a property of name `field` from a CppObject `obj`.
   dynamicCppGet(obj, field)
 
 macro dynamicCppSet*(obj: CppObject, field, value: untyped): untyped =
-  ## Experimental dot accessor (set) for type JsObject.
-  ## Sets the value of a property of name `field` in a CppObject `x` to `value`.
+  ## Sets the value of a property of name `field` in a CppObject `obj` to `value`.
   if obj.len == 0 and $obj == CppGlobalName:
     let importString = $field & " = #"
     result = quote do:
@@ -327,15 +331,13 @@ macro dynamicCppSet*(obj: CppObject, field, value: untyped): untyped =
       helper(`obj`, `value`.toCpp)
 
 template `.=`*(obj: CppObject, field, value: untyped): untyped =
-  ## Experimental dot accessor (set) for type JsObject.
-  ## Sets the value of a property of name `field` in a CppObject `x` to `value`.
+  ## Sets the value of a property of name `field` in a CppObject `obj` to `value`.
   dynamicCppSet(obj, field, value)
   
-macro dynamicCCall*(field: untyped, args: varargs[CppProxy, CppFromAst]): CppProxy =
-  ## Experimental "method call" operator for type CppProxy.
-  ## Takes the name of a method of the JavaScript object (`field`) and calls
-  ## it with `args` as arguments, returning a CppProxy 
-  ## return types have to be casted unless the type is known using `to(T)`, void returns need `to(void)`
+macro dynamicCCall*(field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
+  ## Calls a C function with `args` as arguments and returns a CppProxy.
+  ## Return values have to be converted using `to(T)` or used in other C++ calls.
+  ## Void returns have to be explicitly discarded with `to(void)`.
   var importString: string
   importString = $field & "(@)"
 
@@ -348,11 +350,10 @@ macro dynamicCCall*(field: untyped, args: varargs[CppProxy, CppFromAst]): CppPro
     result[0][3].add newIdentDefs(paramName, ident("CppProxy"))
     result[1].add args[idx].copyNimTree
 
-macro dynamicCppCall*(obj: CppObject, field: untyped, args: varargs[CppProxy, CppFromAst]): CppProxy =
-  ## Experimental "method call" operator for type CppProxy.
-  ## Takes the name of a method of the JavaScript object (`field`) and calls
-  ## it with `args` as arguments, returning a CppProxy 
-  ## return types have to be casted unless the type is known using `to(T)`, void returns need `to(void)`
+macro dynamicCppCall*(obj: CppObject, field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
+  ## Calls a mathod of a C++ object with `args` as arguments and returns a CppProxy.
+  ## Return values have to be converted using `to(T)` or used in other C++ calls.
+  ## Void returns have to be explicitly discarded with `to(void)`.
   var importString: string
   if obj.len == 0 and $obj == CppGlobalName:
     importString = $field & "(@)"
@@ -375,14 +376,13 @@ macro dynamicCppCall*(obj: CppObject, field: untyped, args: varargs[CppProxy, Cp
     result[0][3].add newIdentDefs(paramName, ident("CppProxy"))
     result[1].add args[idx].copyNimTree
 
-template `.()`*(obj: CppObject, field: untyped, args: varargs[CppProxy, CppFromAst]): CppProxy =
-  ## Experimental "method call" operator for type CppProxy.
-  ## Takes the name of a method of the JavaScript object (`field`) and calls
-  ## it with `args` as arguments, returning a CppProxy 
-  ## return types have to be casted unless the type is known using `to(T)`, void returns need `to(void)`
+template `.()`*(obj: CppObject, field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
+  ## Calls a mathod of a C++ object with `args` as arguments and returns a CppProxy.
+  ## Return values have to be converted using `to(T)` or used in other C++ calls.
+  ## Void returns have to be explicitly discarded with `to(void)`.
   dynamicCppCall(obj, field, args)
     
-# iterator utils
+# Iterator utils
 type CppIterator* {.importcpp: "'0::iterator".} [T] = object
 proc itBegin [T] (cset: T): CppIterator[T] {.importcpp:"(#.begin())".}
 proc itEnd [T] (cset: T): CppIterator[T] {.importcpp:"(#.end())".}
@@ -396,14 +396,13 @@ iterator cppItems*[T, R](cset: var T): R =
     yield itValue[T, R](it)
     it = it.itPlusPlus
 
-# std string utils
+# String utils
 defineCppType(StdString, "std::string", "string")
 converter toStdString*(s: string): StdString {.inline, noinit.} = cppinit(StdString, s.cstring)
 
-## TUPLEs
+# Tuple utils
 
-# this could be avoided using templates I guess
-# defineCppType(StdTuple, "auto", "tuple") # hackish but works fine, altho cannot be used inside a type!
+# TODO: Simplify
 type
   StdTuple2* {.importcpp: "std::tuple", header: "tuple".} [T1, T2] = object
   StdTuple3* {.importcpp: "std::tuple", header: "tuple".} [T1, T2, T3] = object
@@ -416,7 +415,6 @@ proc makeCppTuple*(arg1, arg2, arg3: auto): StdTuple3[type(arg1), type(arg2), ty
 proc makeCppTuple*(arg1, arg2, arg3, arg4: auto): StdTuple4[type(arg1), type(arg2), type(arg3), type(arg4)] {.importcpp: "std::make_tuple(@)", header: "tuple".}
 proc makeCppTuple*(arg1, arg2, arg3, arg4, arg5: auto): StdTuple5[type(arg1), type(arg2), type(arg3), type(arg4), type(arg5)] {.importcpp: "std::make_tuple(@)", header: "tuple".}
 
-# std tuple utils
 proc cppTupleGet*[T](index: int; obj: CppProxy): T {.importcpp: "std::get<#>(#)", header: "tuple".}
 proc cppTupleSet*(index: int; obj: CppProxy, value: CppObject) {.importcpp: "std::get<#>(#) = #", header: "tuple".}
 proc cppTupleSize*(obj: CppProxy): int {.importcpp: "std::tuple_size<decltype(#)>::value", header: "tuple".}
@@ -427,7 +425,6 @@ proc cppTupleSize*(obj: CppProxy): int {.importcpp: "std::tuple_size<decltype(#)
 #     inc result
 
 proc toNimTuple*[T1, T2](t: StdTuple2[T1, T2]): (T1, T2) =
-  # we need to call cpp constructor, cos if not our tuple state will be uninitialized (if contains cpp objects that is)
   discard cppctor(addr(result[0]))
   discard cppctor(addr(result[1]))
   result = (cppTupleGet[T1](0, t.toCpp), cppTupleGet[T2](1, t.toCpp))
@@ -453,7 +450,7 @@ proc toNimTuple*[T1, T2, T3, T4, T5](t: StdTuple5[T1, T2, T3, T4, T5]): (T1, T2,
   discard cppctor(addr(result[4]))
   (cppTupleGet[T1](0, t.toCpp), cppTupleGet[T2](1, t.toCpp), cppTupleGet[T3](2, t.toCpp), cppTupleGet[T4](3, t.toCpp), cppTupleGet[T5](4, t.toCpp))
 
-# some issues generating static[int] in cpp
+# Array utils
 type StdArray* {.importcpp: "std::array<'0, '1>", header: "array".} [T; S: static[int]] = object
 proc `[]`*[T; S: static[int]](v: StdArray[T, S]; index: int): T {.inline.} = v.toCpp[index].to(T)
 proc `[]=`*[T; S: static[int]](v: var StdArray[T, S]; index: int; value: T) {.inline.} = v.toCpp[index] = value
@@ -464,6 +461,7 @@ template `@`*[SIZE](a: array[SIZE, bool]): StdArray =
     result[i] = a[i]
   result
 
+# Exception utils
 type
   StdException* {.importcpp: "std::exception", header: "<exception>".} = object
 
@@ -471,6 +469,7 @@ proc what*(s: StdException): cstring {.importcpp: "((char *)#.what())".}
 
 proc nimPointerDeleter(p: pointer) {.exportc.} = dealloc(p)
 
+# Smart pointer utils
 {.emit: """/*TYPESECTION*/
 #include <functional>
 """.}
