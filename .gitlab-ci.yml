@@ -24,20 +24,23 @@ test:windows:
   after_script:
     # Recycle space - should keep latest pkg on branch
     - 'call C:\ProgramData\Miniconda3\Scripts\activate.bat C:\ProgramData\Miniconda3'
-    - conda env remove -n nimline_testing
     - conda clean -y --all
+    - conda env remove -n nimline_testing
   tags:
     - WIN, CONDA
 
 test:macos:
   stage: test
   before_script:
-    - conda env remove -n nim_testing || true
+    - conda env remove -n nimline_testing || true
   script:
     - export MACOSX_DEPLOYMENT_TARGET=10.13
-    - conda create -n nim_testing -c fragcolor nim
-    - export PATH="$PATH:$HOME/miniconda3/envs/nim_testing/bin"
+    - conda create -n nimline_testing -c fragcolor nim
+    - export PATH="$PATH:$HOME/miniconda3/envs/nimline_testing/bin"
     - nim cpp --passC:-std=c++14 --cincludes:. -r nimline.nim
-  
+  after_script:
+    # Recycle space - should keep latest pkg on branch
+    - conda clean -y --all
+    - conda env remove -n nimline_testing || true
   tags:
     - MACOS, CONDA
