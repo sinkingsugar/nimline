@@ -6,38 +6,43 @@ Write C++ straight from Nim, without the need to generate wrappers. Inspired by 
    
 ## Usage
 
-### Accessing members
-
-Nimline allows you to access C++ members and functions of Nim objects using the dot-operators `.`, `.=` and `.()`, and other operations that mimic C++.
-Any Nim value can be used this way, by first reinterpreting it using `toCpp`.
-
-```nimrod
-obj.toCpp().someField = 42 # Translates to `obj.someField = 42`
-discard obj.toCpp().someField.to(int) # Translates to `obj.someField`
-obj.toCpp().someMethod(1).to(void) # Translates to `obj.someMethod(1)`
-```
-
-Return types have to be explicitly specified using `to`, if they need to be stored in variables, or passed to Nim-procs, even for `void` retruns.
-They can however be used in further C++ calls.
-
-If a member name collides with a Nim-keyword, the more explicit notation `invoke` can be used:
-```
-obj.toCpp().invoke("someMethod", 1).to(void)
-```
-Function arguments are automatically reinterpreted as C++ types.
-
-> Note: `toCpp()`, `invoke()` and member-function calls return a `CppProxy`. This is a non-concrete type only enables member access, and does not appear in the generated C++.
-
 ### Importing C++ types
 
-If a C++ type needs to be used as a variable, it should be imported first using `defineCppType`.
-This will declare the type and enable interop on it, similar to `CppProxy`. `toCpp` is not needed on it's instances.
+If a C++ type needs to be used as a variable, it first has to be declared using `defineCppType`. This will import the type and enable interop on it.
 
 ```nimrod
 defineCppType(MyNimType, "MyCppClass", "MyHeader.h")
 var obj: MyNimType
 obj.someField = 42
 ```
+
+### Accessing members
+
+Nimline allows you to access C++ members and functions of Nim objects using the dot-operators `.`, `.=` and `.()`, and other operations that mimic C++.
+
+```nimrod
+obj.someField = 42 # Translates to `obj.someField = 42`
+discard obj.someField.to(cint) # Translates to `obj.someField`
+obj.someMethod(1).to(void) # Translates to `obj.someMethod(1)`
+```
+
+Return types have to be explicitly specified using `to`, if they need to be stored in variables, or passed to Nim-procs, even for `void` retruns.
+This is because the Nim-compiler is not aware of these function signatures. They can however be used in further C++ calls.
+Function arguments are automatically reinterpreted as C++ types.
+
+If a member name collides with a Nim-keyword, the more explicit notation `invoke` can be used:
+```
+obj.invoke("someMethod", 1).to(void)
+```
+
+Even types that were not declared with `defineCppType` can be used in this way, by first reinterpreting them using `toCpp`.
+```nimrod
+type MyType {.importcpp.} = object
+var obj: MyType
+obj.toCpp.someField = 42
+```
+
+> Note: `toCpp()`, `invoke()` and member-function calls return a `CppProxy`. This is a non-concrete type only enables member access, and does not appear in the generated C++.
 
 ### Globals
 
