@@ -55,7 +55,7 @@ matrix:
     # Useful for debugging any issues with conda
     - conda info -a
     - export MACOSX_DEPLOYMENT_TARGET=10.13
-    - conda create -n nimble_testing -c fragcolor nim=0.19.9.1
+    - conda create -n nimline_testing -c fragcolor nim=0.19.9.1
     - export PATH="$PATH:$HOME/miniconda/envs/nimline_testing/bin"
     - nim cpp --cincludes:./tests -r nimline.nim --nimcache:./nimcache
   # - stage: test
