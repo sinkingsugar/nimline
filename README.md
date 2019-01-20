@@ -2,12 +2,14 @@
 
 Write C++ straight from Nim, without the need to generate wrappers. Inspired by `std/jsffi` and using the magic of `importcpp`, `macros` and many other awesome Nim features.
    
+## Usage
+
 ### Accessing members
 
 Nimline allows you to access C++ members and functions of Nim objects using the dot-operators `.`, `.=` and `.()`, and other operations that mimic C++.
 Any Nim value can be used this way, by first reinterpreting it using `toCpp()`.
 
-```
+```nim
 obj.toCpp().someField = 42 # Translates to `obj.someField = 42`
 discard obj.toCpp().someField.to(int) # Translates to `obj.someField`
 obj.toCpp().someMethod(1).to(void) # Translates to `obj.someMethod(1)`
@@ -24,13 +26,13 @@ obj.toCpp().dynamicCppCall("someMethod", 1).to(void)
 ### Importing C++
 To use a C++ type, first declare it:
 
-```
+```nim
 defineCppType(MyClass, "MyClass", "MyHeader.h")
 ```
 
-## Globals
+### Globals
 
-```
+```nim
 # Accessing global variables and functions
 echo global.globalNumber.to(cint)
 global.globalNumber = 102
@@ -65,13 +67,13 @@ cppdtor(untracked)
 ```
 
 For convenience, `cppnewref()` creates a new reference, constructs the object and calls it's constructor on finalization.
-```
+```nim
 cppnewref(tracked, 1)
 ```
 
 ### Adding C++ compiler options
 
-```
+```nim
 cppdefines("MYDEFINE", "MYDEFINE2=10")
 cppincludes(".")
 cppfiles("MyClass.cpp")
@@ -80,5 +82,5 @@ cpplibpaths(".")
 
 ### Standard libary helpers
 
-...
+TODO
 

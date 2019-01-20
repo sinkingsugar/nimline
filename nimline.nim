@@ -515,11 +515,11 @@ when isMainModule:
   
   cppdefines("MYDEFINE", "MYDEFINE2=10")
   cppincludes(".")
-  cppfiles("MyClass.cpp")
+  cppfiles("tests/MyClass.cpp")
   cpplibpaths(".")
   
-  defineCppType(MyClass, "MyClass", "MyClass.hpp")
-  defineCppType(MyClass2, "MyClass2", "MyClass.hpp")
+  defineCppType(MyClass, "MyClass", "tests/MyClass.hpp")
+  defineCppType(MyClass2, "MyClass2", "tests/MyClass.hpp")
 
   type
     MyNimType = object # my nim types still needs to use cpp ctor/dtor cos includes a cpp type inside
