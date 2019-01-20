@@ -5,11 +5,11 @@ import macros, tables, strutils, os
 type
   CppProxy* {.nodecl.} = object
     ## A C++ object whose type is not known to the Nim compiler. Proxies are typically results of C++ calls.
-    ## They can be used in further C++ calls, cast to concrete types using `to`, but not stored in variables.
+    ## They can be used in further C++ calls or cast to concrete types using `to`, but not stored in variables.
 
   CppObject* = concept type T
     ## A concept for types that support C++ method invokation. Users can mark types as `CppObject` using
-    ## `proc isCppObject*(T: type MyCppType): bool = true`
+    ## `proc isCppObject*(T: gittype MyCppType): bool = true`
     T.isCppObject
 
 when defined(js):
@@ -300,7 +300,7 @@ macro cppFromAst*(n: untyped): untyped =
     result = newProc(procType = nnkDo, body = result)
   return quote: toCpp(`result`)
 
-macro dynamicCppGet*(obj: CppObject, field: untyped): CppProxy =
+macro getMember*(obj: CppObject, field: untyped): CppProxy =
   ## Returns the value of a property of name `field` from a CppObject `obj`.
   if obj.len == 0 and $obj == CppGlobalName:
     let importString = "(" & $field & ")"
@@ -313,11 +313,14 @@ macro dynamicCppGet*(obj: CppObject, field: untyped): CppProxy =
       proc helper(o: CppObject): CppProxy {.importcpp:`importString`, gensym.}
       helper(`obj`)
 
+template dynamicCppGet*(obj: CppObject, field: untyped): CppProxy {.deprecated.} =
+  obj.getMember(field)
+
 template `.`*(obj: CppObject, field: untyped): CppProxy =
   ## Returns the value of a property of name `field` from a CppObject `obj`.
-  dynamicCppGet(obj, field)
+  obj.getMember(field)
 
-macro dynamicCppSet*(obj: CppObject, field, value: untyped): untyped =
+macro setMember*(obj: CppObject, field, value: untyped): untyped =
   ## Sets the value of a property of name `field` in a CppObject `obj` to `value`.
   if obj.len == 0 and $obj == CppGlobalName:
     let importString = $field & " = #"
@@ -330,11 +333,14 @@ macro dynamicCppSet*(obj: CppObject, field, value: untyped): untyped =
       proc helper(o: CppObject, v: auto) {.importcpp:`importString`, gensym.}
       helper(`obj`, `value`.toCpp)
 
+template dynamicCppSet*(obj: CppObject, field, value: untyped): untyped {.deprecated.} =
+  obj.setMember(field, value)
+
 template `.=`*(obj: CppObject, field, value: untyped): untyped =
   ## Sets the value of a property of name `field` in a CppObject `obj` to `value`.
-  dynamicCppSet(obj, field, value)
+  obj.setMember(field, value)
   
-macro dynamicCCall*(field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
+macro invokeFunction*(field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
   ## Calls a C function with `args` as arguments and returns a CppProxy.
   ## Return values have to be converted using `to(T)` or used in other C++ calls.
   ## Void returns have to be explicitly discarded with `to(void)`.
@@ -350,7 +356,10 @@ macro dynamicCCall*(field: untyped, args: varargs[CppProxy, cppFromAst]): CppPro
     result[0][3].add newIdentDefs(paramName, ident("CppProxy"))
     result[1].add args[idx].copyNimTree
 
-macro dynamicCppCall*(obj: CppObject, field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
+template dynamicCCall*(field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy {.deprecated.} =
+  invokeFunction(field, args)
+
+macro invoke*(obj: CppObject, field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
   ## Calls a mathod of a C++ object with `args` as arguments and returns a CppProxy.
   ## Return values have to be converted using `to(T)` or used in other C++ calls.
   ## Void returns have to be explicitly discarded with `to(void)`.
@@ -376,11 +385,14 @@ macro dynamicCppCall*(obj: CppObject, field: untyped, args: varargs[CppProxy, cp
     result[0][3].add newIdentDefs(paramName, ident("CppProxy"))
     result[1].add args[idx].copyNimTree
 
+template dynamicCppCall*(obj: CppObject, field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy {.deprecated.} =
+  invoke(obj, field, args)
+
 template `.()`*(obj: CppObject, field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
   ## Calls a mathod of a C++ object with `args` as arguments and returns a CppProxy.
   ## Return values have to be converted using `to(T)` or used in other C++ calls.
   ## Void returns have to be explicitly discarded with `to(void)`.
-  dynamicCppCall(obj, field, args)
+  invoke(obj, field, args)
     
 # Iterator utils
 type CppIterator* {.importcpp: "'0::iterator".} [T] = object
