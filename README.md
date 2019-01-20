@@ -7,44 +7,56 @@ Write C++ straight from Nim, without the need to generate wrappers. Inspired by 
 ### Accessing members
 
 Nimline allows you to access C++ members and functions of Nim objects using the dot-operators `.`, `.=` and `.()`, and other operations that mimic C++.
-Any Nim value can be used this way, by first reinterpreting it using `toCpp()`.
+Any Nim value can be used this way, by first reinterpreting it using `toCpp`.
 
-```nim
+```nimrod
 obj.toCpp().someField = 42 # Translates to `obj.someField = 42`
 discard obj.toCpp().someField.to(int) # Translates to `obj.someField`
 obj.toCpp().someMethod(1).to(void) # Translates to `obj.someMethod(1)`
 ```
 
-Return types have to be explicitly specified using `to()`, if they need to be stored in variables, or passed to Nim-procs, even for `void` retruns.
+Return types have to be explicitly specified using `to`, if they need to be stored in variables, or passed to Nim-procs, even for `void` retruns.
 They can however be used in further C++ calls.
 
-If a member name collides with a Nim-keyword, the more explicit notation `dynamicCppCall` can be used:
+If a member name collides with a Nim-keyword, the more explicit notation `invoke` can be used:
 ```
-obj.toCpp().dynamicCppCall("someMethod", 1).to(void)
+obj.toCpp().invoke("someMethod", 1).to(void)
 ```
+Function arguments are automatically reinterpreted as C++ types.
 
-### Importing C++
-To use a C++ type, first declare it:
+>> Note: `toCpp()`, `invoke()` and member-function calls return a `CppProxy`. This is a non-concrete type only enables member access, and does not appear in the generated C++.
 
-```nim
-defineCppType(MyClass, "MyClass", "MyHeader.h")
+### Importing C++ types
+
+If a C++ type needs to be used as a variable, it should be imported first using `defineCppType`.
+This will declare the type and enable interop on it, similar to `CppProxy`. `toCpp` is not needed on it's instances.
+
+```nimrod
+defineCppType(MyNimType, "MyCppClass", "MyHeader.h")
+var obj: MyNimType
+obj.someField = 42
 ```
 
 ### Globals
 
-```nim
-# Accessing global variables and functions
-echo global.globalNumber.to(cint)
-global.globalNumber = 102
+Global variables and free function can be used from the special `global` object, just like data members and member functions.
+
+```nimrod
+global.globalNumber = 42
 echo global.globalNumber.to(cint)
 global.printf("Hello World\n".cstring).to(void)
+```
+
+Free functions can alternatively be called with `invokeFunction`.
+```nimrod
+invokeFunction("printf", "Hello World\n".cstring).to(void)
 ```
 
 ### Constructors and destructors
 
 To initialize an object on the stack, use `cppinit()`:
 
-```nim
+```nimrod
 # Translates to `MyType obj(1)`
 let obj = cppinit(MyType, 1)
 ```
@@ -67,20 +79,20 @@ cppdtor(untracked)
 ```
 
 For convenience, `cppnewref()` creates a new reference, constructs the object and calls it's constructor on finalization.
-```nim
+```nimrod
 cppnewref(tracked, 1)
 ```
 
 ### Adding C++ compiler options
 
-```nim
+```nimrod
 cppdefines("MYDEFINE", "MYDEFINE2=10")
 cppincludes(".")
 cppfiles("MyClass.cpp")
 cpplibpaths(".")
 ```
 
-### Standard libary helpers
+### Standard library helpers
 
 TODO
 
