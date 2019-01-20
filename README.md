@@ -24,7 +24,7 @@ obj.toCpp().invoke("someMethod", 1).to(void)
 ```
 Function arguments are automatically reinterpreted as C++ types.
 
->> Note: `toCpp()`, `invoke()` and member-function calls return a `CppProxy`. This is a non-concrete type only enables member access, and does not appear in the generated C++.
+> Note: `toCpp()`, `invoke()` and member-function calls return a `CppProxy`. This is a non-concrete type only enables member access, and does not appear in the generated C++.
 
 ### Importing C++ types
 
@@ -63,7 +63,7 @@ let obj = cppinit(MyType, 1)
 
 Objects can also be constructed on the heap, either through a `ptr` or `ref` using `cppctor()`.
 This translates to a placement-new in C++ and needs to be followed by `cppdtor` for cleanup.
-```
+```nimrod
 # Allocate storage
 let
   tracked: ref MyClass = new MyClass
@@ -78,7 +78,7 @@ cppdtor(tracked)
 cppdtor(untracked)
 ```
 
-For convenience, `cppnewref()` creates a new reference, constructs the object and calls it's constructor on finalization.
+For convenience, `cppnewref()` creates a new reference, constructs the object and calls it's destructor on finalization.
 ```nimrod
 cppnewref(tracked, 1)
 ```
