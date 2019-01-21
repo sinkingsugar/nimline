@@ -52,8 +52,8 @@ obj.invoke("someMethod", 1).to(void)
 
 Even types that were not declared with `defineCppType` can be used in this way, by first reinterpreting them using `toCpp`.
 ```nimrod
-type MyType {.importcpp.} = object
-var obj: MyType
+type MyClass {.importcpp.} = object
+var obj: MyClass
 obj.toCpp.someField = 42
 ```
 
@@ -107,14 +107,40 @@ cppnewref(tracked, 1)
 
 ### Adding C++ compiler options
 
+The folloing helpers are available to set C++ compiler/linker options in a platform independent way.
+
 ```nimrod
-cppdefines("MYDEFINE", "MYDEFINE2=10")
-cppincludes(".")
+cppdefines("MYDEFINE", "MYDEFINE2=10") # e.g. -DMYDEFINE -DMYDEFINE2=10
+cppincludes(".") # e.g. -I.
 cppfiles("MyClass.cpp")
-cpplibpaths(".")
+cpplibpaths(".") # e.g. -L.
+cpplibs("libMyModule.so") # e.g. -llibMyModule.so
 ```
 
 ### Standard library helpers
 
-TODO
+- `StdString` (`std::string`)
+  ```nimrod
+  let str: StdString = "HelloWorld"
+  ```
 
+- `StdArray` (`std::array`)
+  ```nimrod
+    var cppArray: StdArray[cint, 4]
+    cppArray[0] = 42
+    echo cppArray[0]
+  ```
+
+- `StdTuple` (`std::tuple`)
+  ```nimrod
+  var cppTyple = makeCppTuple(1, 1.0, obj)
+  cppTupleSet(0, cppTuple.toCpp, 42.toCpp)
+  echo cppTupleGet[int](0, cppTuple.toCpp)
+  let nimTuple = cppTuple.toNimTyple()
+  ```
+
+- `StdException` (`std::expcetion`)
+  ```nimrod
+  try: someNativeFunction()
+  except StdException as e: raiseAssert($e.what())
+  ```
