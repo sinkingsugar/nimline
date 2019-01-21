@@ -14,6 +14,7 @@ test:windows:
     - "echo off"
     - 'call C:\BuildTools\Common7\Tools\VsDevCmd.bat -arch=amd64'
     - 'call C:\ProgramData\Miniconda3\Scripts\activate.bat C:\ProgramData\Miniconda3'
+    - conda env remove -n nimline_testing || VER>NUL
   script:
     - cmd /C conda create -n nimline_testing -c fragcolor nim
     - IF %errorlevel% NEQ 0 exit /b %errorlevel%
