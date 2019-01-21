@@ -4,7 +4,7 @@
 
 Write C++ straight from Nim, without the need to generate wrappers. Inspired by `std/jsffi` and using the magic of `importcpp`, `macros` and many other awesome Nim features.
    
-### Example
+## Code-generation example
 
 Nim:
 ```nimrod
@@ -119,6 +119,8 @@ cpplibs("libMyModule.so") # e.g. -llibMyModule.so
 
 ### Standard library helpers
 
+For convenience, the following standard library types are supported out of the box.
+
 - `StdString` (`std::string`)
   ```nimrod
   let str: StdString = "HelloWorld"
@@ -126,9 +128,9 @@ cpplibs("libMyModule.so") # e.g. -llibMyModule.so
 
 - `StdArray` (`std::array`)
   ```nimrod
-    var cppArray: StdArray[cint, 4]
-    cppArray[0] = 42
-    echo cppArray[0]
+  var cppArray: StdArray[cint, 4]
+  cppArray[0] = 42
+  echo cppArray[0]
   ```
 
 - `StdTuple` (`std::tuple`)
@@ -139,7 +141,7 @@ cpplibs("libMyModule.so") # e.g. -llibMyModule.so
   let nimTuple = cppTuple.toNimTyple()
   ```
 
-- `StdException` (`std::expcetion`)
+- `StdException` (`std::exception`)
   ```nimrod
   try: someNativeFunction()
   except StdException as e: raiseAssert($e.what())
