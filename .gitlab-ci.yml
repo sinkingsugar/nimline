@@ -14,19 +14,20 @@ test:windows:
     - "echo off"
     - 'call C:\BuildTools\Common7\Tools\VsDevCmd.bat -arch=amd64'
     - 'call C:\ProgramData\Miniconda3\Scripts\activate.bat C:\ProgramData\Miniconda3'
-    - conda env remove -n nimline_testing || VER>NUL
+    - cmd /C conda env remove -n nimline_testing
   script:
     - cmd /C conda create -n nimline_testing -c fragcolor nim
     - IF %errorlevel% NEQ 0 exit /b %errorlevel%
     - cmd /C conda activate nimline_testing # it seems we need to do this to actually prepare the env properly?
+    - IF %errorlevel% NEQ 0 exit /b %errorlevel%
     - set CONDA_FRAG=C:\ProgramData\Miniconda3\envs\nimline_testing
     - set PATH=%PATH%;%CONDA_FRAG%\bin
     - nim cpp --cc:vcc --cincludes:. -r nimline.nim
   after_script:
     # Recycle space - should keep latest pkg on branch
     - 'call C:\ProgramData\Miniconda3\Scripts\activate.bat C:\ProgramData\Miniconda3'
-    - conda clean -y --all
-    - conda env remove -n nimline_testing
+    - cmd /C conda clean -y --all
+    - cmd /C conda env remove -n nimline_testing
   tags:
     - WIN, CONDA
 
