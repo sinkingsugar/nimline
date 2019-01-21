@@ -4,6 +4,21 @@
 
 Write C++ straight from Nim, without the need to generate wrappers. Inspired by `std/jsffi` and using the magic of `importcpp`, `macros` and many other awesome Nim features.
    
+### Example
+
+Nim:
+```nimrod
+var obj = cppinit(MyClass, 1)
+obj.someField = 42
+let res = obj.someMethod(1, 2.0).to(cint)
+```
+Generated C++:
+```cpp
+MyClass obj(((NI) 1));
+obj.someField = (((NI) 42));
+int res = (int)(obj.someMethod((((NI) 1)), (2.0000000000000000e+00)));
+```
+
 ## Usage
 
 ### Importing C++ types
