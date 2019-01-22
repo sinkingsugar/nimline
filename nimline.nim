@@ -2,15 +2,28 @@
 
 import macros, tables, strutils, os
 
+var cppTypes {.compileTime.}: seq[NimNode]
+
+macro isCppObject(T: typed): untyped =
+  for cppType in cppTypes:
+    if T.getTypeInst == cppType:
+      return bindSym"true"
+  return bindSym"false"
+
+macro registerCppType*(T: typed): untyped =
+  ## Makes a type satisfy the `CppObject` concept
+  T.expectKind(nnkSym)
+  cppTypes.add(T)
+
 type
   CppProxy* {.nodecl.} = object
     ## A C++ object whose type is not known to the Nim compiler. Proxies are typically results of C++ calls.
     ## They can be used in further C++ calls or cast to concrete types using `to`, but not stored in variables.
 
-  CppObject* = concept type T
+  CppObject* = concept x
     ## A concept for types that support C++ method invokation. Users can mark types as `CppObject` using
-    ## `proc isCppObject*(T: gittype MyCppType): bool = true`
-    T.isCppObject
+    ## `registerCppType(MyType)`
+    x.isCppObject
 
 when defined(js):
   type WasmPtr* = distinct int
@@ -101,7 +114,7 @@ else:
       result.add nnkPragma.newTree(nnkExprColonExpr.newTree(newIdentNode("passL"), newLit(str)))
 
 type CppGlobalType* = object
-proc isCppObject*(T: typedesc[CppGlobalType]): bool = true
+registerCppType(CppGlobalType)
 var global* {.nodecl.}: CppGlobalType
 const CppGlobalName = "global"
 
@@ -125,7 +138,7 @@ macro defineCppType*(name: untyped, importCppStr: string, headerStr: string = ""
   var converterName = newIdentNode("to" & $name)
   result.add quote do:
     converter `converterName`*(co: CppProxy): `name` {.used, importcpp:"(#)".}
-    proc isCppObject*(T: typedesc[`name`]): bool = true
+    registerCppType(`name`)
 
 proc cppinit*(T: typedesc[CppObject]): T {.importcpp:"'0(@)", varargs, constructor.}
   ## Constructs an object of a C++ type
