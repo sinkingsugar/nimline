@@ -148,3 +148,6 @@ For convenience, the following standard library types are supported out of the b
   try: someNativeFunction()
   except StdException as e: raiseAssert($e.what())
   ```
+## Known issues
+
+- `cppinit` does not work in the global scope. This is a Nim issue (https://github.com/nim-lang/Nim/issues/6198).
