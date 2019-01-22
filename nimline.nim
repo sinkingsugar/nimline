@@ -1,6 +1,11 @@
-{.experimental.}
+# Copyright (c) 2018 Fragcolor Inc.
+# For full license information see LICENSE.txt.
+
+## Wrapper-less C/C++ interop for Nim
 
 import macros, tables, strutils, os
+
+{.experimental.}
 
 var cppTypes {.compileTime.}: seq[NimNode]
 
