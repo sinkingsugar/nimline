@@ -2,8 +2,10 @@
 
 [![Build Status](https://travis-ci.com/fragcolor-xyz/nimline.svg?branch=master)  ](https://travis-ci.com/fragcolor-xyz/nimline)
 
-Write C++ straight from Nim, without the need to generate wrappers. Inspired by `std/jsffi` and using the magic of `importcpp`, `macros` and many other awesome Nim features.
-   
+Write C/C++ straight from Nim, without the need to generate wrappers. Inspired by `std/jsffi` and using the magic of `importcpp`, `macros` and many other awesome Nim features.
+
+> Note: Since imported C++ methods and types are not known to the Nim-compiler, errors will be reported by the C++ compiler instead. They will also not be caught by the linter.
+
 ## Code-generation example
 
 Nim:
