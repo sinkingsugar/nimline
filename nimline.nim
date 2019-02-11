@@ -130,7 +130,7 @@ macro defineCppType*(name: untyped, importCppStr: string, headerStr: string = ""
   result.add quote do:
     type `name`* {.header: "", importcpp: "", inheritable.} = object
 
-  if headerStr != nil:
+  if $headerStr != "":
     # replace empty string with proper values
     result[0][0][0][1][0][1] = newStrLitNode($headerStr)
     result[0][0][0][1][1][1] = newStrLitNode($importCppStr)

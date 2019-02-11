@@ -1,5 +1,5 @@
 # Package
-version     = "0.1.0"
+version     = "0.1.1"
 author      = "fragcolor-xyz"
 description = "Wrapper-less C/C++ interop for Nim"
 license     = "MIT"
