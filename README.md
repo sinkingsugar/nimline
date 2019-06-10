@@ -1,5 +1,9 @@
 # Nimline
 
+previously known as [`fragments/ffi/cpp`](https://github.com/fragcolor-xyz/fragments/blob/master/fragments/ffi/cpp.nim)
+
+please star and support [*fragments*](https://github.com/fragcolor-xyz/fragments) as well!
+
 [![Build Status](https://travis-ci.com/fragcolor-xyz/nimline.svg?branch=master)  ](https://travis-ci.com/fragcolor-xyz/nimline)
 
 Write C/C++ straight from Nim, without the need to generate wrappers. Inspired by `std/jsffi` and using the magic of `importcpp`, `macros` and many other awesome Nim features.
