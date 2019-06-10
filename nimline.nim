@@ -485,12 +485,6 @@ type StdArray* {.importcpp: "std::array<'0, '1>", header: "array".} [T; S: stati
 proc `[]`*[T; S: static[int]](v: StdArray[T, S]; index: int): T {.inline.} = v.toCpp[index].to(T)
 proc `[]=`*[T; S: static[int]](v: var StdArray[T, S]; index: int; value: T) {.inline.} = v.toCpp[index] = value
 
-template `@`*[SIZE](a: array[SIZE, bool]): StdArray = 
-  var result: StdArray[bool, a.len]
-  for i in 0..a.high: 
-    result[i] = a[i]
-  result
-
 # Exception utils
 type
   StdException* {.importcpp: "std::exception", header: "<exception>".} = object
