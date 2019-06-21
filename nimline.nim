@@ -413,7 +413,8 @@ template `.()`*(obj: CppObject, field: untyped, args: varargs[CppProxy, cppFromA
   invoke(obj, field, args)
     
 # Iterator utils
-type CppIterator*[T] {.importcpp: "'0::iterator".} = object
+type
+  CppIterator* [T] {.importcpp: "'0::iterator".} = object
 proc itBegin [T] (cset: T): CppIterator[T] {.importcpp:"(#.begin())".}
 proc itEnd [T] (cset: T): CppIterator[T] {.importcpp:"(#.end())".}
 proc itPlusPlus [T] (csetIt: var CppIterator[T]): CppIterator[T] {.importcpp:"(++#)".}
