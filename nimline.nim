@@ -413,7 +413,7 @@ template `.()`*(obj: CppObject, field: untyped, args: varargs[CppProxy, cppFromA
   invoke(obj, field, args)
     
 # Iterator utils
-type CppIterator* {.importcpp: "'0::iterator".} [T] = object
+type CppIterator*[T] {.importcpp: "'0::iterator".} = object
 proc itBegin [T] (cset: T): CppIterator[T] {.importcpp:"(#.begin())".}
 proc itEnd [T] (cset: T): CppIterator[T] {.importcpp:"(#.end())".}
 proc itPlusPlus [T] (csetIt: var CppIterator[T]): CppIterator[T] {.importcpp:"(++#)".}
@@ -434,11 +434,11 @@ converter toStdString*(s: string): StdString {.inline, noinit.} = cppinit(StdStr
 
 # TODO: Simplify
 type
-  StdTuple2* {.importcpp: "std::tuple", header: "tuple".} [T1, T2] = object
-  StdTuple3* {.importcpp: "std::tuple", header: "tuple".} [T1, T2, T3] = object
-  StdTuple4* {.importcpp: "std::tuple", header: "tuple".} [T1, T2, T3, T4] = object
-  StdTuple5* {.importcpp: "std::tuple", header: "tuple".} [T1, T2, T3, T4, T5] = object
-  StdTuple = StdTuple2 | StdTuple3 | StdTuple4 | StdTuple5
+  StdTuple2* [T1, T2] {.importcpp: "std::tuple", header: "tuple".} = object
+  StdTuple3* [T1, T2, T3] {.importcpp: "std::tuple", header: "tuple".} = object
+  StdTuple4* [T1, T2, T3, T4] {.importcpp: "std::tuple", header: "tuple".} = object
+  StdTuple5* [T1, T2, T3, T4, T5] {.importcpp: "std::tuple", header: "tuple".} = object
+  StdTuple* = StdTuple2 | StdTuple3 | StdTuple4 | StdTuple5
 
 proc makeCppTuple*(arg1, arg2: auto): StdTuple2[type(arg1), type(arg2)] {.importcpp: "std::make_tuple(@)", header: "tuple".}
 proc makeCppTuple*(arg1, arg2, arg3: auto): StdTuple3[type(arg1), type(arg2), type(arg3)] {.importcpp: "std::make_tuple(@)", header: "tuple".}
@@ -481,7 +481,7 @@ proc toNimTuple*[T1, T2, T3, T4, T5](t: StdTuple5[T1, T2, T3, T4, T5]): (T1, T2,
   (cppTupleGet[T1](0, t.toCpp), cppTupleGet[T2](1, t.toCpp), cppTupleGet[T3](2, t.toCpp), cppTupleGet[T4](3, t.toCpp), cppTupleGet[T5](4, t.toCpp))
 
 # Array utils
-type StdArray* {.importcpp: "std::array<'0, '1>", header: "array".} [T; S: static[int]] = object
+type StdArray* [T; S: static[int]] {.importcpp: "std::array<'0, '1>", header: "array".} = object
 proc `[]`*[T; S: static[int]](v: StdArray[T, S]; index: int): T {.inline.} = v.toCpp[index].to(T)
 proc `[]=`*[T; S: static[int]](v: var StdArray[T, S]; index: int; value: T) {.inline.} = v.toCpp[index] = value
 
@@ -491,38 +491,38 @@ type
 
 proc what*(s: StdException): cstring {.importcpp: "((char *)#.what())".}
 
-proc nimPointerDeleter(p: pointer) {.exportc.} = dealloc(p)
+# proc nimPointerDeleter(p: pointer) {.exportc.} = dealloc(p)
 
-# Smart pointer utils
-{.emit: """/*TYPESECTION*/
-#include <functional>
-""".}
+# # Smart pointer utils
+# {.emit: """/*TYPESECTION*/
+# #include <functional>
+# """.}
 
-type
-  UniquePointer* {.importcpp: "std::unique_ptr<'*0, std::function<void('*0*)>>", header: "<memory>".} [T] = object
+# type
+#   UniquePointer*[T] {.importcpp: "std::unique_ptr<'*0, std::function<void('*0*)>>", header: "<memory>".} = object
 
-proc internalMakeUnique[T](): UniquePointer[T] =
-  var p: ptr T
-  cppnewptr(p)
-  proc stdmakeptr[T](vp: ptr T): UniquePointer[T] {.importcpp:"std::unique_ptr<'*0, std::function<void('*0*)>>(@, []('*0* ptr) { callCppPtrDestructor(ptr); nimPointerDeleter(ptr); })", varargs, constructor.}
-  return stdmakeptr[T](p)
+# proc internalMakeUnique[T](): UniquePointer[T] =
+#   var p: ptr T
+#   cppnewptr(p)
+#   proc stdmakeptr[T](vp: ptr T): UniquePointer[T] {.importcpp:"std::unique_ptr<'*0, std::function<void('*0*)>>(@, []('*0* ptr) { callCppPtrDestructor(ptr); nimPointerDeleter(ptr); })", varargs, constructor.}
+#   return stdmakeptr[T](p)
 
-proc makeUnique*[T](): UniquePointer[T] {.inline.} =  internalMakeUnique[T]()
+# proc makeUnique*[T](): UniquePointer[T] {.inline.} =  internalMakeUnique[T]()
 
-proc getPtr*[T](up: var UniquePointer[T]): ptr T {.inline.} = up.toCpp.get().to(ptr T)
+# proc getPtr*[T](up: var UniquePointer[T]): ptr T {.inline.} = up.toCpp.get().to(ptr T)
 
-type
-  SharedPointer* {.importcpp: "std::shared_ptr<'*0>", header: "<memory>".} [T] = object
+# type
+#   SharedPointer*[T] {.importcpp: "std::shared_ptr<'*0>", header: "<memory>".} = object
 
-proc internalMakeShared[T](): SharedPointer[T] =
-  var p: ptr T
-  cppnewptr(p)
-  proc stdmakeptr[T](vp: ptr T): SharedPointer[T] {.importcpp:"std::shared_ptr<'*0>(@, []('*0* ptr) { callCppPtrDestructor(ptr); nimPointerDeleter(ptr); })", varargs, constructor.}
-  return stdmakeptr[T](p)
+# proc internalMakeShared[T](): SharedPointer[T] =
+#   var p: ptr T
+#   cppnewptr(p)
+#   proc stdmakeptr[T](vp: ptr T): SharedPointer[T] {.importcpp:"std::shared_ptr<'*0>(@, []('*0* ptr) { callCppPtrDestructor(ptr); nimPointerDeleter(ptr); })", varargs, constructor.}
+#   return stdmakeptr[T](p)
 
-proc makeShared*[T](): SharedPointer[T] {.inline.} =  internalMakeShared[T]()
+# proc makeShared*[T](): SharedPointer[T] {.inline.} =  internalMakeShared[T]()
 
-proc getPtr*[T](up: SharedPointer[T]): ptr T {.inline.} = up.toCpp.get().to(ptr T)
+# proc getPtr*[T](up: SharedPointer[T]): ptr T {.inline.} = up.toCpp.get().to(ptr T)
 
 when defined wasm:
   template EM_ASM*(jsCode: string): untyped =
@@ -619,22 +619,22 @@ when isMainModule:
       echo x.test(1).to(cdouble)
       var nimTuple = cppTuple.toNimTuple()
 
-      var
-        uniqueInt = makeUnique[int]()
-        uniqueIntPtr = uniqueInt.getPtr()
-      uniqueIntPtr[] = 10
-      assert uniqueIntPtr[] == 10
+      # var
+      #   uniqueInt = makeUnique[int]()
+      #   uniqueIntPtr = uniqueInt.getPtr()
+      # uniqueIntPtr[] = 10
+      # assert uniqueIntPtr[] == 10
 
-      var
-        sharedInt = makeShared[int]()
-        sharedIntPtr = sharedInt.getPtr()
-      sharedIntPtr[] = 11
-      assert sharedIntPtr[] == 11
+      # var
+      #   sharedInt = makeShared[int]()
+      #   sharedIntPtr = sharedInt.getPtr()
+      # sharedIntPtr[] = 11
+      # assert sharedIntPtr[] == 11
 
-      block:
-        echo "Expect dtor"
-        var sharedInt = makeShared[MyClass]()
+      # block:
+      #   echo "Expect dtor"
+      #   var sharedInt = makeShared[MyClass]()
 
-      echo "Expect more dtors..."
+      # echo "Expect more dtors..."
     
     run()
