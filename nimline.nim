@@ -492,6 +492,13 @@ type
 
 proc what*(s: StdException): cstring {.importcpp: "((char *)#.what())".}
 
+# References utils
+type
+  CppReference*[T] {.importcpp: "std::reference_wrapper", header: "<functional>".} = object
+
+template cppref*[T](proxy: CppProxy): CppReference[T] = invokeFunction("std::ref", proxy).to(CppReference[T])
+proc get*[T](reference: CppReference[T]): T {.importcpp: "#.get()".} 
+
 # proc nimPointerDeleter(p: pointer) {.exportc.} = dealloc(p)
 
 # # Smart pointer utils
