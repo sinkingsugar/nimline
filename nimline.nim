@@ -499,8 +499,6 @@ type
 template cppref*[T](proxy: CppProxy): CppReference[T] = invokeFunction("std::ref", proxy).to(CppReference[T])
 proc get*[T](reference: CppReference[T]): T {.importcpp: "#.get()".} 
 
-defineCppType(StdVector, "std::vector", "<vector>")
-
 # proc nimPointerDeleter(p: pointer) {.exportc.} = dealloc(p)
 
 # # Smart pointer utils
