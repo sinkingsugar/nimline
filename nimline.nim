@@ -253,9 +253,13 @@ proc `>=` *(x, y: CppProxy): CppProxy {.importcpp: "(# >= #)".}
 proc `<=` *(x, y: CppProxy): CppProxy {.importcpp: "(# <= #)".}
 proc `<<` *(x, y: CppProxy): CppProxy {.importcpp: "(# << #)".}
 proc `>>` *(x, y: CppProxy): CppProxy {.importcpp: "(# >> #)".}
-proc `and`*(x, y: CppProxy): CppProxy {.importcpp: "(# && #)".}
-proc `or` *(x, y: CppProxy): CppProxy {.importcpp: "(# || #)".}
-proc `not`*(x: CppProxy): CppProxy {.importcpp: "(!#)".}
+proc `xor`*(x, y: CppProxy): CppProxy {.importcpp: "(# ^ #)".}
+proc `and`*(x, y: CppProxy): CppProxy {.importcpp: "(# & #)".}
+proc `or` *(x, y: CppProxy): CppProxy {.importcpp: "(# | #)".}
+proc `mod` *(x, y: CppProxy): CppProxy {.importcpp: "(# % #)".}
+proc `shl` *(x, y: CppProxy): CppProxy {.importcpp: "(# << #)".}
+proc `shr` *(x, y: CppProxy): CppProxy {.importcpp: "(# >> #)".}
+proc `not`*(x: CppProxy): CppProxy {.importcpp: "(~#)".}
 proc `-`  *(x: CppProxy): CppProxy {.importcpp: "(-#)".}
 
 proc `[]`*(obj: CppProxy, field: auto): CppProxy {.importcpp: "#[#]".}
