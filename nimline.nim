@@ -362,7 +362,7 @@ template `.=`*(obj: CppObject, field, value: untyped): untyped =
   ## Sets the value of a property of name `field` in a CppObject `obj` to `value`.
   obj.setMember(field, value)
   
-macro invokeFunction*(field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
+macro invokeFunction*(field: untyped | string, args: varargs[CppProxy, cppFromAst]): CppProxy =
   ## Calls a C function with `args` as arguments and returns a CppProxy.
   ## Return values have to be converted using `to(T)` or used in other C++ calls.
   ## Void returns have to be explicitly discarded with `to(void)`.
@@ -381,7 +381,7 @@ macro invokeFunction*(field: untyped, args: varargs[CppProxy, cppFromAst]): CppP
 template dynamicCCall*(field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy {.deprecated.} =
   invokeFunction(field, args)
 
-macro invoke*(obj: CppObject, field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
+macro invoke*(obj: CppObject, field: untyped | string, args: varargs[CppProxy, cppFromAst]): CppProxy =
   ## Calls a mathod of a C++ object with `args` as arguments and returns a CppProxy.
   ## Return values have to be converted using `to(T)` or used in other C++ calls.
   ## Void returns have to be explicitly discarded with `to(void)`.
