@@ -536,6 +536,19 @@ proc get*[T](reference: CppReference[T]): T {.importcpp: "#.get()".}
 
 # proc getPtr*[T](up: SharedPointer[T]): ptr T {.inline.} = up.toCpp.get().to(ptr T)
 
+macro emitc*(stmts: varargs[untyped]): untyped =
+  var bracktree = nnkBracket.newTree()
+  for s in stmts:
+    bracktree.add(s)
+  result = nnkStmtList.newTree(
+      nnkPragma.newTree(
+        nnkExprColonExpr.newTree(
+          newIdentNode("emit"),
+          bracktree
+        )
+      )
+    )
+
 when defined wasm:
   template EM_ASM*(jsCode: string): untyped =
     {.emit: """/*INCLUDESECTION*/
