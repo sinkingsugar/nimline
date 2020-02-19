@@ -545,10 +545,43 @@ proc new*[T: CppObject](_: type[T]): CppRef[T] =
   cppnewptr x
   result.p = x
 
+proc new*[T: CppObject](_: type[T]; arg0: auto): CppRef[T] =
+  var x: ptr T
+  cppnewptr x, arg0
+  result.p = x
+
+proc new*[T: CppObject](_: type[T]; arg0, arg1: auto): CppRef[T] =
+  var x: ptr T
+  cppnewptr x, arg0, arg1
+  result.p = x
+
+proc new*[T: CppObject](_: type[T]; arg0, arg1, arg2: auto): CppRef[T] =
+  var x: ptr T
+  cppnewptr x, arg0, arg1, arg2
+  result.p = x
+  
 proc newref*[T: CppObject](_: type[T]): ref CppRef[T] =
   new result
   var x: ptr T
   cppnewptr x
+  result.p = x
+
+proc newref*[T: CppObject](_: type[T]; arg0: auto): ref CppRef[T] =
+  new result
+  var x: ptr T
+  cppnewptr x, arg0
+  result.p = x
+
+proc newref*[T: CppObject](_: type[T]; arg0, arg1: auto): ref CppRef[T] =
+  new result
+  var x: ptr T
+  cppnewptr x, arg0, arg1
+  result.p = x
+
+proc newref*[T: CppObject](_: type[T]; arg0, arg1, arg2: auto): ref CppRef[T] =
+  new result
+  var x: ptr T
+  cppnewptr x, arg0, arg1, arg2
   result.p = x
   
 proc `=destroy`*[T: CppObject](r: var CppRef[T]) =
@@ -691,7 +724,7 @@ when isMainModule:
       var nimTuple = cppTuple.toNimTuple()
 
       var
-        myx = MyClass.new()
+        myx = MyClass.new(10)
         myxref = MyClass.newref()
       myx.test3().to(void)
       myx.number = 99
