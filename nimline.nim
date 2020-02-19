@@ -622,7 +622,7 @@ when defined wasm:
 # utility to automatically call NimMain when using C++17, just compile the library with -d:auto_nim_main
 when defined auto_nim_main:
   {.emit:"""
-extern "C" void NimMain();
+extern N_CDECL(void, NimMain)(void);
 namespace nimline {
 struct AutoNimMain {
   AutoNimMain() {
