@@ -17,6 +17,15 @@ Nim:
 var obj = cppinit(MyClass, 1)
 obj.someField = 42
 let res = obj.someMethod(1, 2.0).to(cint)
+
+# or for an internal pointer, which is more flexible due to lack of constructors in nim
+var
+  myx = MyClass.new()
+  myxref = MyClass.newref()
+myx.test3().to(void)
+myx.number = 99
+myxref.test3().to(void)
+myxref.number = 100
 ```
 Generated C++:
 ```cpp
@@ -155,3 +164,4 @@ For convenience, the following standard library types are supported out of the b
 ## Known issues
 
 - `cppinit` does not work in the global scope. This is a Nim issue (https://github.com/nim-lang/Nim/issues/6198).
+- Nim always memsets to 0 value types, this might have serious bad effects on most cpp classes. Workaround with refs and pointers.

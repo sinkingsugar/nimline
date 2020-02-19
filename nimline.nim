@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Fragcolor Inc.
+# Copyright (c) 2018-2020 Giovanni Petrantoni.
 # For full license information see LICENSE.txt.
 
 ## Wrapper-less C/C++ interop for Nim
@@ -214,24 +214,24 @@ proc cppnewref*(myRef: var ref, arg0, arg1: auto) =
   new(myRef, proc(self: type(myRef)) = self.internalCppdtor())
   myRef.cppctor(arg0, arg1)
 
-template cppnewptr*(myPtr: ptr): untyped =
+template cppnewptr*[T](myPtr: ptr T): untyped =
   ## Allocates storage for and constructs a C++ object
-  myPtr = cast[type(myPtr)](alloc0(sizeof(type(myPtr[]))))
+  myPtr = cast[ptr T](alloc0(sizeof(T)))
   myPtr.cppctor()
 
-template cppnewptr*(myPtr: ptr, arg0: typed): untyped =
+template cppnewptr*[T](myPtr: ptr T, arg0: typed): untyped =
   ## Allocates storage for and constructs a C++ object
-  myPtr = cast[type(myPtr)](alloc0(sizeof(type(myPtr[]))))
+  myPtr = cast[ptr T](alloc0(sizeof(T)))
   myPtr.cppctor(arg0)
 
-template cppnewptr*(myPtr: ptr, arg0, arg1: typed): untyped =
+template cppnewptr*[T](myPtr: ptr T, arg0, arg1: typed): untyped =
   ## Allocates storage for and constructs a C++ object
-  myPtr = cast[type(myPtr)](alloc0(sizeof(type(myPtr[]))))
+  myPtr = cast[ptr T](alloc0(sizeof(T)))
   myPtr.cppctor(arg0, arg1)
 
-template cppnewptr*(myPtr: ptr, arg0, arg1, arg2: typed): untyped =
+template cppnewptr*[T](myPtr: ptr T, arg0, arg1, arg2: typed): untyped =
   ## Allocates storage for and constructs a C++ object
-  myPtr = cast[type(myPtr)](alloc0(sizeof(type(myPtr[]))))
+  myPtr = cast[ptr T](alloc0(sizeof(T)))
   myPtr.cppctor(arg0, arg1, arg2)
 
 proc `+`  *(x, y: CppProxy): CppProxy {.importcpp: "(# + #)".}
@@ -536,6 +536,34 @@ proc get*[T](reference: CppReference[T]): T {.importcpp: "#.get()".}
 
 # proc getPtr*[T](up: SharedPointer[T]): ptr T {.inline.} = up.toCpp.get().to(ptr T)
 
+type
+  CppRef*[T: CppObject] = object
+    p: ptr T
+
+proc new*[T: CppObject](_: type[T]): CppRef[T] =
+  var x: ptr T
+  cppnewptr x
+  result.p = x
+
+proc newref*[T: CppObject](_: type[T]): ref CppRef[T] =
+  new result
+  var x: ptr T
+  cppnewptr x
+  result.p = x
+  
+proc `=destroy`*[T: CppObject](r: var CppRef[T]) =
+  cppdelptr r.p
+
+template `.()`*[T: CppObject](obj: CppRef[T], field: untyped, args: varargs[CppProxy, cppFromAst]): CppProxy =
+  ## Calls a mathod of a C++ object with `args` as arguments and returns a CppProxy.
+  ## Return values have to be converted using `to(T)` or used in other C++ calls.
+  ## Void returns have to be explicitly discarded with `to(void)`.
+  invoke(obj.p[], field, args)
+
+template `.=`*[T: CppObject](obj: CppRef[T], field, value: untyped): untyped =
+  ## Sets the value of a property of name `field` in a CppObject `obj` to `value`.
+  obj.p[].setMember(field, value)
+
 macro emitc*(stmts: varargs[untyped]): untyped =
   var bracktree = nnkBracket.newTree()
   for s in stmts:
@@ -558,6 +586,24 @@ when defined wasm:
       {.emit: ["EM_ASM(", jsCode, ");"].}
     emAsmProc()
 
+# utility to automatically call NimMain when using C++17, just compile the library with -d:auto_nim_main
+when defined auto_nim_main:
+  {.emit:"""
+extern "C" void NimMain();
+namespace nimline {
+struct AutoNimMain {
+  AutoNimMain() {
+     NimMain();
+  }
+};
+
+struct AutoNimMainExecutor {
+  // requires c++17
+  static inline AutoNimMain doit{};
+};
+}
+""".}
+    
 when isMainModule:
   {.emit:"#include <stdio.h>".}
   {.emit:"#include <string>".}
@@ -583,15 +629,15 @@ when isMainModule:
       var nxp: ptr MyNimType
       cppnewptr nxp
       var y = cast[ptr MyClass](alloc0(sizeof(MyClass)))
-      var w: ref MyClass
-      new(w, proc(self: ref MyClass) = self.internalCppdtor())
+      # var w: ref MyClass
+      # new(w, proc(self: ref MyClass) = self.internalCppdtor())
       var z = y.cppctor(1)
-      var q = w.cppctor(1)
+      # var q = w.cppctor(1)
       
-      var j: ref MyClass
-      cppnewref(j, 1)
-      j.number = 22
-      echo j.number.to(cint)
+      # var j: ref MyClass
+      # cppnewref(j, 1)
+      # j.number = 22
+      # echo j.number.to(cint)
       
       var k: ptr MyClass 
       cppnewptr(k, 2)
@@ -607,7 +653,7 @@ when isMainModule:
       y.test3().to(void)
       y.test4(7, 8).to(void)
 
-      echo q.number.to(cint)
+      echo z.number.to(cint)
       y.number = 80
       y.numbers[0] = 23
       var n = (x.number + y.number + y.numbers[0]).to(cint)
@@ -643,6 +689,14 @@ when isMainModule:
       var tx = cppTupleGet[MyClass](0, cppTuple.toCpp)
       echo x.test(1).to(cdouble)
       var nimTuple = cppTuple.toNimTuple()
+
+      var
+        myx = MyClass.new()
+        myxref = MyClass.newref()
+      myx.test3().to(void)
+      myx.number = 99
+      myxref.test3().to(void)
+      myxref.number = 100
 
       # var
       #   uniqueInt = makeUnique[int]()
